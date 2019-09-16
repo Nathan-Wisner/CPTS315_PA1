@@ -1,4 +1,5 @@
-from itertools import combinations, chain
+from itertools import combinations
+from multiprocessing import Pool
 
 # Global variables. Could be used as config params
 IN_FILE = "../pa1/data/browsing-data.txt"
@@ -35,18 +36,36 @@ def apriori_pass_1(data_set, s):
 
 def apriori_pass_2(frequent_items, data_set, s):
     item_counts = {}
+    line_count = 0
+
+    candidates = [list(elem) for elem in combinations(frequent_items, 2)]
 
     for line in data_set:
+        line_count += 1
+        print(f"Line #{line_count} of {len(data_set)}\n")
+        for candidate in candidates:
+            if set(candidate).issubset(line):
+                key = tuple(candidate)
 
-        line_combinations = set(combinations(line, 2))
-
-        for combination in line_combinations:
-            if combination[0] in frequent_items and combination[1] in frequent_items:
-
-                if item_counts.get(combination):
-                    item_counts[combination] = item_counts[combination] + 1
+                if item_counts.get(key):
+                    item_counts[key] = item_counts[key] + 1
                 else:
-                    item_counts[combination] = 1
+                    item_counts[key] = 1
+
+
+
+
+    # for line in data_set:
+
+    #     line_combinations = set(combinations(line, 2))
+
+    #     for combination in line_combinations:
+    #         if combination[0] in frequent_items and combination[1] in frequent_items:
+
+    #             if item_counts.get(combination):
+    #                 item_counts[combination] = item_counts[combination] + 1
+    #             else:
+    #                 item_counts[combination] = 1
 
     return {key: value for (key, value) in item_counts.items() if value >= s}
 
@@ -98,20 +117,31 @@ def main():
     # Groom the data to a lists of lists of strings
     groomed_data = groom_imported_data(all_lines)
 
+    pool = Pool(processes=4)
+
     # Find frequent singles
     support_singles = apriori_pass_1(groomed_data, SUPPORT)
+    # support_singles = pool.apply_async(apriori_pass_1, [groomed_data, SUPPORT]).get()
+
+    keys = list(support_singles.keys())
+    
+
+    support_pairs = pool.starmap(apriori_pass_2(
+            list(support_singles.keys()), groomed_data, SUPPORT))
+
+    # answer = support_pairs.get(timeout= None)
 
     # Find frequest pairs
-    support_pairs = apriori_pass_2(
-        list(support_singles.keys()), groomed_data, SUPPORT)
+    # support_pairs = pool.map(apriori_pass_2(
+    #     list(support_singles.keys()), groomed_data, SUPPORT))
+    
+    # support_triples = apriori_pass_3(
+    #     list(chain(*support_pairs.keys())), groomed_data, SUPPORT)
 
-    support_triples = apriori_pass_3(
-        list(chain(*support_pairs.keys())), groomed_data, SUPPORT)
-
-    # Compute confidences for pairs
-    pairs_confidence = compute_pairs_confidence(support_singles, support_pairs)
-
-    dump_output()
+    # # Compute confidences for pairs
+    # pairs_confidence = compute_pairs_confidence(support_singles, support_pairs)
+    # print(support_pairs)
+    # dump_output()
 
 
 if __name__ == '__main__':
