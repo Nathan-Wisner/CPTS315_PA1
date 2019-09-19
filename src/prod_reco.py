@@ -1,4 +1,4 @@
-from itertools import combinations
+from itertools import combinations, chain
 from multiprocessing import Pool
 
 # Global variables. Could be used as config params
@@ -37,53 +37,49 @@ def apriori_pass_1(data_set, s):
 def apriori_pass_2(frequent_items, data_set, s):
     item_counts = {}
     line_count = 0
+    milestone = int(len(data_set) / 10)
 
-    candidates = [list(elem) for elem in combinations(frequent_items, 2)]
+    candidates = set(combinations(frequent_items, 2))
 
     for line in data_set:
-        line_count += 1
-        print(f"Line #{line_count} of {len(data_set)}\n")
+
         for candidate in candidates:
-            if set(candidate).issubset(line):
-                key = tuple(candidate)
+            if candidate[0] in line and candidate[1] in line:
 
-                if item_counts.get(key):
-                    item_counts[key] = item_counts[key] + 1
+                if item_counts.get(candidate):
+                    item_counts[candidate] = item_counts[candidate] + 1
                 else:
-                    item_counts[key] = 1
+                    item_counts[candidate] = 1
 
-
-
-
-    # for line in data_set:
-
-    #     line_combinations = set(combinations(line, 2))
-
-    #     for combination in line_combinations:
-    #         if combination[0] in frequent_items and combination[1] in frequent_items:
-
-    #             if item_counts.get(combination):
-    #                 item_counts[combination] = item_counts[combination] + 1
-    #             else:
-    #                 item_counts[combination] = 1
+        line_count += 1
+        if line_count % milestone == 0:
+            print(
+                f"A-Priori pass 2 completion: {'{:.0%}'.format(line_count / len(data_set))}")
 
     return {key: value for (key, value) in item_counts.items() if value >= s}
 
 
 def apriori_pass_3(frequent_items, data_set, s):
     item_counts = {}
+    line_count = 0
+    milestone = int(len(data_set) / 50)
+
+    triples = set(combinations(frequent_items, 3))
 
     for line in data_set:
 
-        tripples = set(combinations(line, 3))
-
-        for combination in tripples:
-            if combination[0] in frequent_items and combination[1] in frequent_items and combination[2] in frequent_items:
+        for combination in triples:
+            if combination[0] in line and combination[1] in line and combination[2] in line:
 
                 if item_counts.get(combination):
                     item_counts[combination] = item_counts[combination] + 1
                 else:
                     item_counts[combination] = 1
+
+        line_count += 1
+        if line_count % milestone == 0:
+            print(
+                f"A-Priori pass 3 completion: {'{:.0%}'.format(line_count / len(data_set))}")
 
     return {key: value for (key, value) in item_counts.items() if value >= s}
 
@@ -92,14 +88,34 @@ def compute_pairs_confidence(frequent_singles, frequent_pairs):
     confidences = {}
 
     for pair in frequent_pairs.keys():
-        confidences[pair] = frequent_pairs[pair] / frequent_singles[pair[0]]
+        confidences[(pair[0], pair[1])] = frequent_pairs[pair] / \
+            frequent_singles[pair[0]]
+        confidences[(pair[1], pair[0])] = frequent_pairs[pair] / \
+            frequent_singles[pair[1]]
 
     return sorted(confidences.items(), key=lambda x: x[1], reverse=True)
 
 
-def generate_group(item_set, group_size):
+def compute_triples_confidence(frequent_singles, frequent_pairs, frequent_triples):
+    confidences = {}
 
-    return [list(group) for group in combinations(item_set, group_size)]
+    for triple in frequent_triples.keys():
+        denominator = frequent_pairs.get(
+            (triple[0], triple[1])) or frequent_pairs.get((triple[1], triple[0]))
+        confidences[(triple[0], triple[1], triple[2])
+                    ] = frequent_triples[triple] / denominator
+
+        denominator = frequent_pairs.get(
+            (triple[0], triple[2])) or frequent_pairs.get((triple[2], triple[0]))
+        confidences[(triple[0], triple[2], triple[1])
+                    ] = frequent_triples[triple] / denominator
+
+        denominator = frequent_pairs.get(
+            (triple[1], triple[2])) or frequent_pairs.get((triple[2], triple[1]))
+        confidences[(triple[1], triple[2], triple[0])
+                    ] = frequent_triples[triple] / denominator
+
+    return sorted(confidences.items(), key=lambda x: x[1], reverse=True)
 
 
 # file dumping
@@ -117,24 +133,43 @@ def main():
     # Groom the data to a lists of lists of strings
     groomed_data = groom_imported_data(all_lines)
 
-    pool = Pool(processes=4)
-
     # Find frequent singles
+    print("Finding frequent singles")
     support_singles = apriori_pass_1(groomed_data, SUPPORT)
-    # support_singles = pool.apply_async(apriori_pass_1, [groomed_data, SUPPORT]).get()
+    print("Done")
 
-    keys = list(support_singles.keys())
-    
+    print("Finding frequent pairs")
+    support_pairs = apriori_pass_2(
+        support_singles.keys(), groomed_data, SUPPORT)
+    print("Done")
 
-    support_pairs = pool.starmap(apriori_pass_2(
-            list(support_singles.keys()), groomed_data, SUPPORT))
+    print("Finding frequent triples")
+    frequent_items = set(chain.from_iterable(support_pairs))
+    support_triples = apriori_pass_3(frequent_items, groomed_data, SUPPORT)
+    print("Done")
+
+    print("Calculating pairs confidences\n")
+    pairs_confidences = compute_pairs_confidence(
+        support_singles, support_pairs)
+
+    print("Calculating triples confidences\n")
+    triples_confidences = compute_triples_confidence(
+        support_singles, support_pairs, support_triples)
+
+    print("\nPairs")
+    for pair in pairs_confidences[:5]:
+        print(pair)
+
+    print("\nTriples")
+    for triple in triples_confidences[:5]:
+        print(triple)
 
     # answer = support_pairs.get(timeout= None)
 
     # Find frequest pairs
     # support_pairs = pool.map(apriori_pass_2(
     #     list(support_singles.keys()), groomed_data, SUPPORT))
-    
+
     # support_triples = apriori_pass_3(
     #     list(chain(*support_pairs.keys())), groomed_data, SUPPORT)
 
