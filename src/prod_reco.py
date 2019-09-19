@@ -17,6 +17,9 @@ def read_input():
 
 def groom_imported_data(imported_data):
 
+    # Format each line into list form
+    # and
+    # return the list of lists
     return [[data_point for data_point in line.split()] for line in imported_data]
 
 
@@ -88,11 +91,15 @@ def compute_pairs_confidence(frequent_singles, frequent_pairs):
     confidences = {}
 
     for pair in frequent_pairs.keys():
+        # {X} --> Y
         confidences[(pair[0], pair[1])] = frequent_pairs[pair] / \
             frequent_singles[pair[0]]
+        
+        # {Y} --> X
         confidences[(pair[1], pair[0])] = frequent_pairs[pair] / \
             frequent_singles[pair[1]]
 
+    # Sort data and return
     return sorted(confidences.items(), key=lambda x: x[1], reverse=True)
 
 
@@ -100,21 +107,28 @@ def compute_triples_confidence(frequent_singles, frequent_pairs, frequent_triple
     confidences = {}
 
     for triple in frequent_triples.keys():
-        denominator = frequent_pairs.get(
-            (triple[0], triple[1])) or frequent_pairs.get((triple[1], triple[0]))
-        confidences[(triple[0], triple[1], triple[2])
-                    ] = frequent_triples[triple] / denominator
+        # {X, Y} --> Z
+        denominator = frequent_pairs.get((triple[0], triple[1])) or \
+            frequent_pairs.get((triple[1], triple[0]))
+        
+        confidences[(triple[0], triple[1], triple[2])] = \
+            frequent_triples[triple] / denominator
 
-        denominator = frequent_pairs.get(
-            (triple[0], triple[2])) or frequent_pairs.get((triple[2], triple[0]))
-        confidences[(triple[0], triple[2], triple[1])
-                    ] = frequent_triples[triple] / denominator
+        # {X, Z} --> Y
+        denominator = frequent_pairs.get((triple[0], triple[2])) or \
+            frequent_pairs.get((triple[2], triple[0]))
+        
+        confidences[(triple[0], triple[2], triple[1])] = \
+            frequent_triples[triple] / denominator
 
-        denominator = frequent_pairs.get(
-            (triple[1], triple[2])) or frequent_pairs.get((triple[2], triple[1]))
-        confidences[(triple[1], triple[2], triple[0])
-                    ] = frequent_triples[triple] / denominator
+        # {Y, Z} --> X
+        denominator = frequent_pairs.get((triple[1], triple[2])) or \
+            frequent_pairs.get((triple[2], triple[1]))
+        
+        confidences[(triple[1], triple[2], triple[0])] = \
+            frequent_triples[triple] / denominator
 
+    # Sort data and return
     return sorted(confidences.items(), key=lambda x: x[1], reverse=True)
 
 
@@ -138,20 +152,24 @@ def main():
     support_singles = apriori_pass_1(groomed_data, SUPPORT)
     print("Done")
 
+    # Find frequent pairs
     print("Finding frequent pairs")
     support_pairs = apriori_pass_2(
         support_singles.keys(), groomed_data, SUPPORT)
     print("Done")
 
+    # Find frequent triples
     print("Finding frequent triples")
     frequent_items = set(chain.from_iterable(support_pairs))
     support_triples = apriori_pass_3(frequent_items, groomed_data, SUPPORT)
     print("Done")
 
+    # Calculate association confidences of pairs
     print("Calculating pairs confidences\n")
     pairs_confidences = compute_pairs_confidence(
         support_singles, support_pairs)
 
+    # Calculate association confidences of triples
     print("Calculating triples confidences\n")
     triples_confidences = compute_triples_confidence(
         support_singles, support_pairs, support_triples)
