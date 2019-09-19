@@ -173,9 +173,6 @@ def main():
     # support_triples = apriori_pass_3(
     #     list(chain(*support_pairs.keys())), groomed_data, SUPPORT)
 
-    # # Compute confidences for pairs
-    # pairs_confidence = compute_pairs_confidence(support_singles, support_pairs)
-    # print(support_pairs)
     # dump_output()
 
 
