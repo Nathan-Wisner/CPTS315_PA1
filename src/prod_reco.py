@@ -4,7 +4,7 @@ from multiprocessing import Pool
 # Global variables. Could be used as config params
 IN_FILE = "../pa1/data/browsing-data.txt"
 OUT_FILE = "./output.txt"
-SUPPORT = 100
+SUPPORT = 15
 
 
 # Read in the file
@@ -44,6 +44,8 @@ def apriori_pass_2(frequent_items, data_set, s):
 
     candidates = set(combinations(frequent_items, 2))
 
+    print(f"A-Priori pass 2 completion: {'{:.0%}'.format(line_count / len(data_set))}")
+
     for line in data_set:
 
         for candidate in candidates:
@@ -68,6 +70,8 @@ def apriori_pass_3(frequent_items, data_set, s):
     milestone = int(len(data_set) / 50)
 
     triples = set(combinations(frequent_items, 3))
+    print(f"A-Priori pass 3 completion: {'{:.0%}'.format(line_count / len(data_set))}")
+    
 
     for line in data_set:
 
@@ -81,8 +85,7 @@ def apriori_pass_3(frequent_items, data_set, s):
 
         line_count += 1
         if line_count % milestone == 0:
-            print(
-                f"A-Priori pass 3 completion: {'{:.0%}'.format(line_count / len(data_set))}")
+            print(f"A-Priori pass 3 completion: {'{:.0%}'.format(line_count / len(data_set))}")
 
     return {key: value for (key, value) in item_counts.items() if value >= s}
 
@@ -94,7 +97,7 @@ def compute_pairs_confidence(frequent_singles, frequent_pairs):
         # {X} --> Y
         confidences[(pair[0], pair[1])] = frequent_pairs[pair] / \
             frequent_singles[pair[0]]
-        
+
         # {Y} --> X
         confidences[(pair[1], pair[0])] = frequent_pairs[pair] / \
             frequent_singles[pair[1]]
@@ -110,21 +113,21 @@ def compute_triples_confidence(frequent_singles, frequent_pairs, frequent_triple
         # {X, Y} --> Z
         denominator = frequent_pairs.get((triple[0], triple[1])) or \
             frequent_pairs.get((triple[1], triple[0]))
-        
+
         confidences[(triple[0], triple[1], triple[2])] = \
             frequent_triples[triple] / denominator
 
         # {X, Z} --> Y
         denominator = frequent_pairs.get((triple[0], triple[2])) or \
             frequent_pairs.get((triple[2], triple[0]))
-        
+
         confidences[(triple[0], triple[2], triple[1])] = \
             frequent_triples[triple] / denominator
 
         # {Y, Z} --> X
         denominator = frequent_pairs.get((triple[1], triple[2])) or \
             frequent_pairs.get((triple[2], triple[1]))
-        
+
         confidences[(triple[1], triple[2], triple[0])] = \
             frequent_triples[triple] / denominator
 
@@ -133,9 +136,19 @@ def compute_triples_confidence(frequent_singles, frequent_pairs, frequent_triple
 
 
 # file dumping
-def dump_output():
+def dump_output(pairs_results, triples_results):
     with open(OUT_FILE, "w") as text_file:
-        pass
+        
+        # Write the pairs + association
+        text_file.write("OUTPUT A\n")
+        for result in pairs_results:
+            text_file.write(f"{result[0][0]} {result[0][1]} {result[1]}\n")
+        
+        # Write the triples + association
+        text_file.write("OUTPUT B\n")
+        for result in triples_results:
+            text_file.write(f"{result[0][0]} {result[0][1]} {result[0][2]} {result[1]}\n")
+
     return
 
 
@@ -153,9 +166,10 @@ def main():
     print("Done")
 
     # Find frequent pairs
+    singles = list(support_singles.keys())
     print("Finding frequent pairs")
     support_pairs = apriori_pass_2(
-        support_singles.keys(), groomed_data, SUPPORT)
+        singles, groomed_data, SUPPORT)
     print("Done")
 
     # Find frequent triples
@@ -165,47 +179,23 @@ def main():
     print("Done")
 
     # Calculate association confidences of pairs
-    print("Calculating pairs confidences\n")
+    print("Calculating pairs confidences")
     pairs_confidences = compute_pairs_confidence(
         support_singles, support_pairs)
 
     # Calculate association confidences of triples
-    print("Calculating triples confidences\n")
+    print("Calculating triples confidences")
     triples_confidences = compute_triples_confidence(
         support_singles, support_pairs, support_triples)
 
-    print("\nPairs")
-    for pair in pairs_confidences[:5]:
-        print(pair)
+    pairs_results = pairs_confidences[:5]
+    triples_results = triples_confidences[:5]
 
-    print("\nTriples")
-    for triple in triples_confidences[:5]:
-        print(triple)
+    # Dump the results
+    dump_output(pairs_results, triples_results)
 
-    # answer = support_pairs.get(timeout= None)
-
-    # Find frequest pairs
-    # support_pairs = pool.map(apriori_pass_2(
-    #     list(support_singles.keys()), groomed_data, SUPPORT))
-
-    # support_triples = apriori_pass_3(
-    #     list(chain(*support_pairs.keys())), groomed_data, SUPPORT)
-
-    # dump_output()
+    print(f"Results data written! Please see {OUT_FILE} for results.")
 
 
 if __name__ == '__main__':
     main()
-
-    # text_file.write("OUTPUT A\n")
-    # text_file.write("FRO11987 FRO12685 0.4325\n")
-    # text_file.write("FRO11987 ELE11375 0.4225\n")
-    # text_file.write("FRO11987 GRO94758 0.4125\n")
-    # text_file.write("FRO11987 SNA80192 0.4025\n")
-    # text_file.write("FRO11987 FRO18919 0.4015\n")
-    # text_file.write("OUTPUT B\n")
-    # text_file.write("FRO11987 FRO12685 DAI95741 0.4325\n")
-    # text_file.write("FRO11987 ELE11375 GRO73461 0.4225\n")
-    # text_file.write("FRO11987 GRO94758 ELE26917 0.4125\n")
-    # text_file.write("FRO11987 SNA80192 ELE28189 0.4025\n")
-    # text_file.write("FRO11987 FRO18919 GRO68850 0.4015\n")
