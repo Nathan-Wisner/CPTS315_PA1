@@ -1,4 +1,4 @@
 #!/bin/sh
 # This is a comment!
 
-python ./src/prod_reco.py
+python3 ./src/prod_reco.py
