@@ -4,7 +4,7 @@ from multiprocessing import Pool
 # Global variables. Could be used as config params
 IN_FILE = "../pa1/data/browsing-data.txt"
 OUT_FILE = "./output.txt"
-SUPPORT = 15
+SUPPORT = 100
 
 
 # Read in the file
